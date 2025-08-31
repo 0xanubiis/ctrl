@@ -2,9 +2,10 @@ import { headers } from "next/headers"
 import { NextRequest, NextResponse } from "next/server"
 import Stripe from "stripe"
 import { createClient } from "@/lib/supabase/server"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2024-06-20",
+  apiVersion: "2025-07-30.basil",
 })
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
         break
 
       default:
-        console.log(`Unhandled event type: ${event.type}`)
+        console.warn(`Unhandled Stripe event type: ${event.type}`)
     }
 
     return NextResponse.json({ received: true })
@@ -70,13 +71,18 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function handleSubscriptionCreated(subscription: Stripe.Subscription, supabase: any) {
+async function handleSubscriptionCreated(subscription: Stripe.Subscription, supabase: SupabaseClient) {
   try {
     const customerId = subscription.customer as string
-    const { data: customer } = await stripe.customers.retrieve(customerId)
-    
-    if (customer && typeof customer !== 'string' && customer.email) {
-      // Get user by email
+    let customer
+    try {
+      customer = await stripe.customers.retrieve(customerId)
+    } catch (error) {
+      console.error("Error retrieving customer:", error)
+      return
+    }
+
+    if (customer && typeof customer !== "string" && "email" in customer) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("id")
@@ -84,7 +90,6 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, supa
         .single()
 
       if (profile) {
-        // Determine tier based on price ID
         let tier = "free"
         if (subscription.items.data.length > 0) {
           const priceId = subscription.items.data[0].price.id
@@ -92,7 +97,6 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, supa
           else if (priceId === process.env.STRIPE_PRO_PRICE_ID) tier = "premium"
         }
 
-        // Update or create subscription
         await supabase
           .from("subscriptions")
           .upsert({
@@ -102,7 +106,9 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, supa
             status: subscription.status,
             tier,
             current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
+            current_period_end: subscription.current_period_end
+              ? new Date(subscription.current_period_end * 1000).toISOString()
+              : null,
             cancel_at_period_end: subscription.cancel_at_period_end,
           })
 
@@ -117,9 +123,15 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription, supa
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supabase: any) {
   try {
     const customerId = subscription.customer as string
-    const { data: customer } = await stripe.customers.retrieve(customerId)
+    let customer
+    try {
+      customer = await stripe.customers.retrieve(customerId)
+    } catch (error) {
+      console.error("Error retrieving customer:", error)
+      return
+    }
     
-    if (customer && typeof customer !== 'string' && customer.email) {
+    if (customer && typeof customer !== "string" && "email" in customer) {
       const { data: profile } = await supabase
         .from("profiles")
         .select("id")
@@ -140,12 +152,10 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription, supa
             status: subscription.status,
             tier,
             current_period_start: new Date(subscription.current_period_start * 1000).toISOString(),
-            current_period_end: new Date(subscription.current_period_end * 1000).toISOString(),
-            cancel_at_period_end: subscription.cancel_at_period_end,
+            current_period_end: subscription.current_period_end
+              ? new Date(subscription.current_period_end * 1000).toISOString()
+              : null,
           })
-          .eq("stripe_subscription_id", subscription.id)
-
-        console.log(`Subscription updated for user ${profile.id}: ${tier} - ${subscription.status}`)
       }
     }
   } catch (error) {
@@ -177,7 +187,7 @@ async function handlePaymentSucceeded(invoice: Stripe.Invoice, supabase: any) {
         .update({
           status: "active",
         })
-        .eq("stripe_subscription_id", invoice.subscription as string)
+        .eq("stripe_subscription_id", invoice.subscription?.toString())
 
       console.log(`Payment succeeded for subscription: ${invoice.subscription}`)
     }
@@ -196,7 +206,7 @@ async function handlePaymentFailed(invoice: Stripe.Invoice, supabase: any) {
         })
         .eq("stripe_subscription_id", invoice.subscription as string)
 
-      console.log(`Payment failed for subscription: ${invoice.subscription}`)
+      console.log(`Payment failed for subscription: ${invoice.subscription ?? "unknown"}`)
     }
   } catch (error) {
     console.error("Error handling payment failed:", error)

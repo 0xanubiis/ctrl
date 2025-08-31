@@ -1,113 +1,75 @@
 import { createClient } from "@/lib/supabase/server"
-import { SUBSCRIPTION_PLANS } from "@/lib/stripe"
 
-export async function checkUsageLimit(
-  userId: string,
-  featureType: "tts" | "stt" | "noise_reduction",
-): Promise<{
-  allowed: boolean
-  currentUsage: number
-  limit: number
-  tier: string
-}> {
-  const supabase = createClient()
+// Types of features you track
+export type FeatureType = "tts" | "stt" | "noise_reduction"
 
-  // Get user's subscription
-  const { data: subscription } = await supabase
-    .from("subscriptions")
-    .select("tier, status")
-    .eq("user_id", userId)
-    .single()
-
-  if (!subscription || subscription.status !== "active") {
-    const freePlan = SUBSCRIPTION_PLANS.free
-    const limit = freePlan.limits[featureType]
-
-    // Get current month usage
-    const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM format
-    const { data: usage } = await supabase
-      .from("usage_tracking")
-      .select("usage_count")
-      .eq("user_id", userId)
-      .eq("feature_type", featureType)
-      .eq("month_year", currentMonth)
-      .single()
-
-    const currentUsage = usage?.usage_count || 0
-
-    return {
-      allowed: currentUsage < limit,
-      currentUsage,
-      limit,
-      tier: "free",
-    }
-  }
-
-  const plan = SUBSCRIPTION_PLANS[subscription.tier as keyof typeof SUBSCRIPTION_PLANS]
-  const limit = plan.limits[featureType]
-
-  // Unlimited usage for enterprise or if limit is -1
-  if (limit === -1) {
-    return {
-      allowed: true,
-      currentUsage: 0,
-      limit: -1,
-      tier: subscription.tier,
-    }
-  }
-
-  // Get current month usage
-  const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM format
-  const { data: usage } = await supabase
-    .from("usage_tracking")
-    .select("usage_count")
-    .eq("user_id", userId)
-    .eq("feature_type", featureType)
-    .eq("month_year", currentMonth)
-    .single()
-
-  const currentUsage = usage?.usage_count || 0
-
-  return {
-    allowed: currentUsage < limit,
-    currentUsage,
-    limit,
-    tier: subscription.tier,
-  }
+// Define usage limits per tier
+const USAGE_LIMITS: Record<string, Record<FeatureType, number>> = {
+  free: { tts: 1000, stt: 1000, noise_reduction: 100 },
+  pro: { tts: 10000, stt: 10000, noise_reduction: 1000 },
+  premium: { tts: 50000, stt: 50000, noise_reduction: 5000 },
 }
 
-export async function incrementUsage(userId: string, featureType: "tts" | "stt" | "noise_reduction"): Promise<void> {
-  const supabase = createClient()
-  const currentMonth = new Date().toISOString().slice(0, 7) // YYYY-MM format
+/**
+ * Check a user's usage for a given feature, with monthly reset
+ * starting from their registration date
+ */
+export async function checkUsageLimit(userId: string, feature: FeatureType) {
+  const supabase = await createClient()
 
-  // Upsert usage record
-  await supabase
-    .from("usage_tracking")
-    .upsert(
-      {
-        user_id: userId,
-        feature_type: featureType,
-        month_year: currentMonth,
-        usage_count: 1,
-      },
-      {
-        onConflict: "user_id,feature_type,month_year",
-        ignoreDuplicates: false,
-      },
-    )
-    .select()
-    .then(async ({ data, error }) => {
-      if (error) throw error
+  // Get user profile with registration date + tier
+  const { data: profile, error: profileError } = await supabase
+    .from("profiles")
+    .select("id, created_at, tier")
+    .eq("id", userId)
+    .single()
 
-      // If record exists, increment the count
-      if (data && data.length > 0) {
-        const currentCount = data[0].usage_count
-        await supabase
-          .from("usage_tracking")
-          .update({ usage_count: currentCount + 1 })
-          .eq("user_id", userId)
-          .eq("feature_type", featureType)
-          .eq("month_year", currentMonth)
-      }
-    })
+  if (profileError || !profile) {
+    throw new Error("User profile not found")
+  }
+
+  const tier = profile.tier ?? "free"
+
+  // Use registration date as cycle start
+  const registrationDate = new Date(profile.created_at)
+  const now = new Date()
+
+  // Compute cycle start & end (rolling from registration)
+  const cycleStart = new Date(registrationDate)
+  while (cycleStart <= now) {
+    const nextCycle = new Date(cycleStart)
+    nextCycle.setMonth(nextCycle.getMonth() + 1)
+    if (nextCycle > now) break
+    cycleStart.setMonth(cycleStart.getMonth() + 1)
+  }
+  const cycleEnd = new Date(cycleStart)
+  cycleEnd.setMonth(cycleStart.getMonth() + 1)
+
+  // Get usage logs for this user & feature within current cycle
+  const { data: usageLogs, error: usageError } = await supabase
+    .from("usage_logs")
+    .select("amount")
+    .eq("user_id", userId)
+    .eq("feature", feature)
+    .gte("created_at", cycleStart.toISOString())
+    .lt("created_at", cycleEnd.toISOString())
+
+  if (usageError) {
+    throw new Error("Error fetching usage logs")
+  }
+
+  // Sum up usage
+  const used = usageLogs?.reduce((sum: any, log: { amount: any }) => sum + (log.amount ?? 0), 0) ?? 0
+  const limit = USAGE_LIMITS[tier]?.[feature] ?? 0
+
+  return {
+    used,
+    limit,
+    tier,
+    remaining: Math.max(limit - used, 0),
+    cycle: {
+      start: cycleStart,
+      end: cycleEnd,
+    },
+  }
 }

@@ -1,4 +1,5 @@
-import { createServerComponentClient } from "@supabase/ssr"
+// lib/supabase/server.ts
+import { createServerClient } from "@supabase/ssr"
 import { cookies } from "next/headers"
 import { cache } from "react"
 import type { Database } from "@/lib/types/database"
@@ -11,8 +12,8 @@ export const isSupabaseConfigured =
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 0
 
 // Create a cached version of the Supabase client for Server Components
-export const createClient = cache(() => {
-  const cookieStore = cookies()
+export const createClient = cache(async () => {
+  const cookieStore = await cookies()
 
   if (!isSupabaseConfigured) {
     console.warn("Supabase environment variables are not set. Using dummy client.")
@@ -24,31 +25,95 @@ export const createClient = cache(() => {
     } as any
   }
 
-  return createServerComponentClient<Database>({ cookies: () => cookieStore })
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll: () => cookieStore.getAll(),
+        setAll: (cookiesToSet) => {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore.set(name, value, options)
+            })
+          } catch (error) {
+            // Handle cookie setting error if needed
+            console.error("Error setting cookies:", error)
+          }
+        },
+      },
+    }
+  )
 })
 
 // Helper function to get current user profile
 export async function getCurrentUser() {
-  const supabase = createClient()
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser()
 
-  if (error || !user) {
+    if (error || !user) {
+      return null
+    }
+
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single()
+
+    if (profileError) {
+      console.error("Error fetching user profile:", profileError)
+      return null
+    }
+
+    return profile
+  } catch (error) {
+    console.error("Error in getCurrentUser:", error)
     return null
   }
-
-  const { data: profile } = await supabase.from("profiles").select("*").eq("id", user.id).single()
-
-  return profile
 }
 
 // Helper function to get user subscription
 export async function getUserSubscription(userId: string) {
-  const supabase = createClient()
+  try {
+    const supabase = await createClient()
 
-  const { data: subscription } = await supabase.from("subscriptions").select("*").eq("user_id", userId).single()
+    const { data: subscription, error } = await supabase
+      .from("subscriptions")
+      .select("*")
+      .eq("user_id", userId)
+      .single()
 
-  return subscription
+    if (error) {
+      console.error("Error fetching user subscription:", error)
+      return null
+    }
+
+    return subscription
+  } catch (error) {
+    console.error("Error in getUserSubscription:", error)
+    return null
+  }
+}
+
+// Helper function to get session (useful for authentication checks)
+export async function getSession() {
+  try {
+    const supabase = await createClient()
+    const { data: { session }, error } = await supabase.auth.getSession()
+    
+    if (error) {
+      console.error("Error getting session:", error)
+      return null
+    }
+    
+    return session
+  } catch (error) {
+    console.error("Error in getSession:", error)
+    return null
+  }
 }

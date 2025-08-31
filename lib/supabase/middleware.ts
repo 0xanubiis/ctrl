@@ -1,62 +1,66 @@
-import { createMiddlewareClient } from "@supabase/ssr"
-import { NextResponse, type NextRequest } from "next/server"
-import type { Database } from "@/lib/types/database"
+// middleware.ts
+import { NextResponse } from "next/server"
+import type { NextRequest } from "next/server"
+import { createServerClient } from "@supabase/ssr"
+import { getUserTier } from "@/lib/subscription"
 
-// Check if Supabase environment variables are available
-export const isSupabaseConfigured =
-  typeof process.env.NEXT_PUBLIC_SUPABASE_URL === "string" &&
-  process.env.NEXT_PUBLIC_SUPABASE_URL.length > 0 &&
-  typeof process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY === "string" &&
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY.length > 0
+export async function middleware(req: NextRequest) {
+  // Create a response object that we can modify
+  let response = NextResponse.next({
+    request: {
+      headers: req.headers,
+    },
+  })
 
-export async function updateSession(request: NextRequest) {
-  // If Supabase is not configured, just continue without auth
-  if (!isSupabaseConfigured) {
-    return NextResponse.next({
-      request,
-    })
-  }
-
-  const res = NextResponse.next()
-
-  // Create a Supabase client configured to use cookies
-  const supabase = createMiddlewareClient<Database>({ req: request, res })
-
-  // Check if this is an auth callback
-  const requestUrl = new URL(request.url)
-  const code = requestUrl.searchParams.get("code")
-
-  if (code) {
-    // Exchange the code for a session
-    await supabase.auth.exchangeCodeForSession(code)
-    // Redirect to dashboard after successful auth
-    return NextResponse.redirect(new URL("/dashboard", request.url))
-  }
-
-  // Refresh session if expired - required for Server Components
-  await supabase.auth.getSession()
-
-  // Protected routes - redirect to login if not authenticated
-  const isAuthRoute =
-    request.nextUrl.pathname.startsWith("/auth/login") ||
-    request.nextUrl.pathname.startsWith("/auth/signup") ||
-    request.nextUrl.pathname === "/auth/callback"
-
-  const isPublicRoute =
-    request.nextUrl.pathname === "/" ||
-    request.nextUrl.pathname.startsWith("/pricing") ||
-    request.nextUrl.pathname.startsWith("/about")
-
-  if (!isAuthRoute && !isPublicRoute) {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession()
-
-    if (!session) {
-      const redirectUrl = new URL("/auth/login", request.url)
-      return NextResponse.redirect(redirectUrl)
+  // Create Supabase client with middleware-specific cookie handling
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value
+        },
+        set(name: string, value: string, options: any) {
+          response.cookies.set(name, value, options)
+        },
+        remove(name: string, options: any) {
+          response.cookies.set(name, "", { ...options, maxAge: 0 })
+        },
+      },
     }
+  )
+
+  // Get user from Supabase
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+
+  if (userError) {
+    console.error("Auth error in middleware:", userError)
   }
 
-  return res
+  if (!user) {
+    return NextResponse.redirect(new URL("/login", req.url))
+  }
+
+  // Get user tier
+  let tier = "free"
+  try {
+    tier = await getUserTier(user.id)
+  } catch (error) {
+    console.error("Error getting user tier:", error)
+  }
+
+  // Redirect free users trying to access pro content
+  if (req.nextUrl.pathname.startsWith("/pro") && tier === "free") {
+    return NextResponse.redirect(new URL("/upgrade", req.url))
+  }
+
+  return response
+}
+
+export const config = {
+  matcher: ["/dashboard/:path*", "/pro/:path*"],
 }

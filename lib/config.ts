@@ -33,7 +33,7 @@ export const config = {
     pro: {
       id: "pro",
       name: "Pro",
-      price: 2900, // $29.00 in cents
+      price: 1499, // $29.00 in cents
       currency: "usd",
       interval: "month" as const,
       features: [
@@ -53,7 +53,7 @@ export const config = {
     premium: {
       id: "premium",
       name: "Premium",
-      price: 9900, // $99.00 in cents
+      price: 2999, // $99.00 in cents
       currency: "usd",
       interval: "month" as const,
       features: [

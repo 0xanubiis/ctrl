@@ -1,16 +1,40 @@
-import { getCurrentUser, getUserSubscription, getUserUsage } from "@/lib/supabase/server"
-import { redirect } from "next/navigation"
-import DashboardPage from "@/components/dashboard/dashboard-page"
+"use client"
 
-export default async function DashboardPageRoute() {
-  const user = await getCurrentUser()
+import { useEffect, useState } from "react"
 
-  if (!user) {
-    redirect("/auth/login")
-  }
+export default function DashboardPage() {
+  const [usage, setUsage] = useState<any>(null)
 
-  const subscription = await getUserSubscription(user.id)
-  const usage = await getUserUsage(user.id)
+  useEffect(() => {
+    async function fetchUsage() {
+      const res = await fetch("/api/audio/usage")
+      const data = await res.json()
+      setUsage(data)
+    }
+    fetchUsage()
+  }, [])
 
-  return <DashboardPage user={user} subscription={subscription} usage={usage} />
+  if (!usage) return <p>Loading usage...</p>
+
+  return (
+    <div className="p-6">
+      <h1 className="text-2xl font-bold">Dashboard</h1>
+      <p className="mt-2">Current Tier: {usage.tier}</p>
+
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+        {Object.entries(usage.usage).map(([feature, stats]: any) => (
+          <div key={feature} className="p-4 border rounded-lg shadow">
+            <h2 className="font-semibold">{feature.toUpperCase()}</h2>
+            <p>Used: {stats.used}</p>
+            <p>Limit: {stats.limit}</p>
+            <p>Remaining: {stats.remaining}</p>
+            <p>
+              Cycle: {new Date(stats.cycleStart).toLocaleDateString()} →{" "}
+              {new Date(stats.cycleEnd).toLocaleDateString()}
+            </p>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }

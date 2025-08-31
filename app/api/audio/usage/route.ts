@@ -25,11 +25,24 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       success: true,
       usage: {
-        tts: ttsUsage,
-        stt: sttUsage,
-        noise_reduction: noiseReductionUsage,
+        tts: {
+          used: ttsUsage.used,
+          limit: ttsUsage.limit,
+          remaining: ttsUsage.remaining,
+        },
+        stt: {
+          used: sttUsage.used,
+          limit: sttUsage.limit,
+          remaining: sttUsage.remaining,
+        },
+        noise_reduction: {
+          used: noiseReductionUsage.used,
+          limit: noiseReductionUsage.limit,
+          remaining: noiseReductionUsage.remaining,
+        },
       },
       tier: ttsUsage.tier,
+      cycle: ttsUsage.cycle, // All features share the same cycle
     })
   } catch (error) {
     console.error("Usage API error:", error)
