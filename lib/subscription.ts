@@ -1,7 +1,8 @@
 import { createClient } from "@/lib/supabase/server"
 
 export async function getUserTier(userId: string): Promise<string> {
-  const supabase = createClient()
+  const supabase = await createClient() // Added 'await' here
+  
   const { data, error } = await supabase
     .from("profiles")
     .select("tier")
