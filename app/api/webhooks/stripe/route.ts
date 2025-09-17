@@ -2,23 +2,14 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 
-// Initialize Stripe
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2023-10-16",
 });
 
-// Initialize Supabase
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL as string,
   process.env.SUPABASE_SERVICE_ROLE_KEY as string
 );
-
-// Disable body parsing (needed for Stripe webhooks)
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
 
 export async function POST(req: Request) {
   const signature = req.headers.get("stripe-signature");
@@ -30,7 +21,9 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
+    // In App Router, req.text() already gives you the raw body (no need for config hacks)
     const body = await req.text();
+
     event = stripe.webhooks.constructEvent(
       body,
       signature,
@@ -62,12 +55,15 @@ export async function POST(req: Request) {
 
         if (!plan) break;
 
-        await supabase.from("users").update({
-          plan_id: plan.id,
-          tokens_remaining: plan.tokens,
-          subscription_status: "active",
-          subscription_renewal: new Date().toISOString(),
-        }).eq("id", user.id);
+        await supabase
+          .from("users")
+          .update({
+            plan_id: plan.id,
+            tokens_remaining: plan.tokens,
+            subscription_status: "active",
+            subscription_renewal: new Date().toISOString(),
+          })
+          .eq("id", user.id);
 
         break;
       }
@@ -84,12 +80,15 @@ export async function POST(req: Request) {
           .single();
 
         if (plan) {
-          await supabase.from("users").update({
-            plan_id: plan.id,
-            tokens_remaining: plan.tokens,
-            subscription_status: subscription.status,
-            subscription_renewal: new Date().toISOString(),
-          }).eq("stripe_customer_id", subscription.customer as string);
+          await supabase
+            .from("users")
+            .update({
+              plan_id: plan.id,
+              tokens_remaining: plan.tokens,
+              subscription_status: subscription.status,
+              subscription_renewal: new Date().toISOString(),
+            })
+            .eq("stripe_customer_id", subscription.customer as string);
         }
         break;
       }
@@ -104,12 +103,15 @@ export async function POST(req: Request) {
           .single();
 
         if (freePlan) {
-          await supabase.from("users").update({
-            plan_id: freePlan.id,
-            tokens_remaining: freePlan.tokens,
-            subscription_status: "canceled",
-            subscription_renewal: null,
-          }).eq("stripe_customer_id", subscription.customer as string);
+          await supabase
+            .from("users")
+            .update({
+              plan_id: freePlan.id,
+              tokens_remaining: freePlan.tokens,
+              subscription_status: "canceled",
+              subscription_renewal: null,
+            })
+            .eq("stripe_customer_id", subscription.customer as string);
         }
         break;
       }
