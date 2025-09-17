@@ -11,11 +11,12 @@ import Link from "next/link"
 async function PricingContent() {
   const supabase = await createClient()
 
-  // Get subscription plans
+  // Get active paid plans (exclude free by filtering)
   const { data: plans } = await supabase
     .from("subscription_plans")
     .select("*")
     .eq("is_active", true)
+    .neq("id", "free")
     .order("price_monthly", { ascending: true })
 
   return (
@@ -49,7 +50,12 @@ async function PricingContent() {
         {/* Pricing Cards */}
         <div className="isolate mx-auto mt-10 grid max-w-md grid-cols-1 gap-8 lg:mx-0 lg:max-w-none lg:grid-cols-3">
           {plans?.map((plan, index) => (
-            <PricingCard key={plan.id} plan={plan} billingCycle="monthly" isPopular={index === 1} />
+            <PricingCard
+              key={plan.id}
+              plan={plan}
+              billingCycle="monthly"
+              isPopular={plan.id === "pro"} // highlight Pro instead of index
+            />
           ))}
         </div>
 
@@ -94,14 +100,13 @@ async function PricingContent() {
             <div>
               <h4 className="font-semibold text-foreground">What happens if I exceed my token limit?</h4>
               <p className="mt-2 text-muted-foreground">
-                You'll be notified when you're close to your limit. You can upgrade your plan or purchase additional
-                tokens.
+                You'll be notified when you're close to your limit. You can upgrade your plan or purchase additional tokens.
               </p>
             </div>
             <div>
               <h4 className="font-semibold text-foreground">Is there a free trial?</h4>
               <p className="mt-2 text-muted-foreground">
-                Yes, all new users get 1,000 free tokens to try our service. No credit card required.
+                Yes, all new users start with 1,000 free tokens to try our service. No credit card required.
               </p>
             </div>
           </div>
@@ -130,7 +135,9 @@ export default function PricingPage() {
       <Suspense fallback={<div className="py-24 text-center">Loading pricing...</div>}>
         <PricingContent />
       </Suspense>
+
       <MarketingFooter />
     </div>
   )
 }
+

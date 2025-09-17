@@ -21,9 +21,7 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
-    // In App Router, req.text() already gives you the raw body (no need for config hacks)
     const body = await req.text();
-
     event = stripe.webhooks.constructEvent(
       body,
       signature,
@@ -48,9 +46,11 @@ export async function POST(req: Request) {
         if (!user) break;
 
         const { data: plan } = await supabase
-          .from("plans")
+          .from("subscription_plans")
           .select("*")
-          .eq("stripe_price_id", session.metadata?.priceId)
+          .or(
+            `stripe_price_id_monthly.eq.${session.metadata?.priceId},stripe_price_id_yearly.eq.${session.metadata?.priceId}`
+          )
           .single();
 
         if (!plan) break;
@@ -59,7 +59,7 @@ export async function POST(req: Request) {
           .from("users")
           .update({
             plan_id: plan.id,
-            tokens_remaining: plan.tokens,
+            tokens_remaining: plan.tokens_per_month,
             subscription_status: "active",
             subscription_renewal: new Date().toISOString(),
           })
@@ -68,25 +68,30 @@ export async function POST(req: Request) {
         break;
       }
 
-      case "customer.subscription.created":
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription;
         const priceId = subscription.items.data[0].price.id;
 
         const { data: plan } = await supabase
-          .from("plans")
+          .from("subscription_plans")
           .select("*")
-          .eq("stripe_price_id", priceId)
+          .or(`stripe_price_id_monthly.eq.${priceId},stripe_price_id_yearly.eq.${priceId}`)
           .single();
 
         if (plan) {
+          const renewalDate = new Date(subscription.current_period_end * 1000).toISOString();
+
+          // Did the billing cycle just renew? (Stripe sets `billing_reason: 'subscription_cycle'`)
+          const resetTokens =
+            (subscription.latest_invoice as any)?.billing_reason === "subscription_cycle";
+
           await supabase
             .from("users")
             .update({
               plan_id: plan.id,
-              tokens_remaining: plan.tokens,
+              tokens_remaining: resetTokens ? plan.tokens_per_month : undefined, // reset only on renewal
               subscription_status: subscription.status,
-              subscription_renewal: new Date().toISOString(),
+              subscription_renewal: renewalDate,
             })
             .eq("stripe_customer_id", subscription.customer as string);
         }
@@ -97,9 +102,9 @@ export async function POST(req: Request) {
         const subscription = event.data.object as Stripe.Subscription;
 
         const { data: freePlan } = await supabase
-          .from("plans")
+          .from("subscription_plans")
           .select("*")
-          .eq("name", "Free")
+          .eq("id", "free")
           .single();
 
         if (freePlan) {
@@ -107,7 +112,7 @@ export async function POST(req: Request) {
             .from("users")
             .update({
               plan_id: freePlan.id,
-              tokens_remaining: freePlan.tokens,
+              tokens_remaining: freePlan.tokens_per_month,
               subscription_status: "canceled",
               subscription_renewal: null,
             })
