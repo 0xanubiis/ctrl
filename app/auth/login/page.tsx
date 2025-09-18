@@ -81,7 +81,7 @@ export default function LoginPage() {
                 </div>
                 <div className="mt-4 text-center text-sm">
                   Don&apos;t have an account?{" "}
-                  <Link href="/auth/signup" className="underline underline-offset-4">
+                  <Link href="/dashboard" className="underline underline-offset-4">
                     Sign up
                   </Link>
                 </div>
