@@ -1,20 +1,44 @@
 "use client"
 
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { useState } from "react"
 
 export default function LoginPage() {
+  const router = useRouter()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const router = useRouter()
+  const [checkingSession, setCheckingSession] = useState(true)
+
+  useEffect(() => {
+    const supabase = createClient()
+
+    // Recover session from magic link or email verification
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace("/dashboard")
+      } else {
+        setCheckingSession(false)
+      }
+    })
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) {
+        router.replace("/dashboard")
+      }
+    })
+
+    return () => {
+      listener.subscription.unsubscribe()
+    }
+  }, [router])
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,46 +53,20 @@ export default function LoginPage() {
       })
       if (error) throw error
 
-      const user = data.user
-      if (!user) throw new Error("No user returned")
-
-      // ✅ Ensure profile exists or update full_name
-      await supabase.from("profiles").upsert({
-        id: user.id,
-        email: user.email,
-        full_name: user.user_metadata?.full_name || null,
-      })
-
-      // ✅ Ensure Free plan exists in "subscription_plans"
-      const { data: freePlan } = await supabase
-        .from("subscription_plans")
-        .select("id, tokens")
-        .eq("id", "free")
-        .single()
-
-      if (freePlan) {
-        // ✅ Assign free plan if user doesn’t already have one
-        await supabase
-          .from("users")
-          .upsert(
-            {
-              id: user.id,
-              plan_id: freePlan.id,
-              tokens_remaining: freePlan.tokens,
-              subscription_status: "active",
-              subscription_renewal: new Date().toISOString(),
-            },
-            { onConflict: "id" }
-          )
-      }
-
-      // 🚀 Redirect to dashboard
-      router.push("/dashboard")
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred")
+      router.replace("/dashboard")
+    } catch (error: unknown) {
+      setError(error instanceof Error ? error.message : "An error occurred")
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (checkingSession) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p>Checking session...</p>
+      </div>
+    )
   }
 
   return (
