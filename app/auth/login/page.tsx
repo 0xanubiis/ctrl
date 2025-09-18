@@ -32,35 +32,40 @@ export default function LoginPage() {
       const user = data.user
       if (!user) throw new Error("No user returned")
 
-      // ✅ Ensure profile exists
+      // ✅ Ensure profile exists or update full_name
       await supabase.from("profiles").upsert({
         id: user.id,
         email: user.email,
         full_name: user.user_metadata?.full_name || null,
       })
 
-      // ✅ Ensure free subscription exists (on conflict do nothing)
+      // ✅ Ensure Free plan exists in "subscription_plans"
       const { data: freePlan } = await supabase
-        .from("plans")
+        .from("subscription_plans")
         .select("id, tokens")
-        .eq("name", "Free")
+        .eq("id", "free")
         .single()
 
       if (freePlan) {
+        // ✅ Assign free plan if user doesn’t already have one
         await supabase
           .from("users")
-          .update({
-            plan_id: freePlan.id,
-            tokens_remaining: freePlan.tokens,
-            subscription_status: "active",
-            subscription_renewal: new Date().toISOString(),
-          })
-          .eq("id", user.id)
+          .upsert(
+            {
+              id: user.id,
+              plan_id: freePlan.id,
+              tokens_remaining: freePlan.tokens,
+              subscription_status: "active",
+              subscription_renewal: new Date().toISOString(),
+            },
+            { onConflict: "id" }
+          )
       }
 
+      // 🚀 Redirect to dashboard
       router.push("/dashboard")
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
       setIsLoading(false)
     }

@@ -37,22 +37,26 @@ export default function SignUpPage() {
     }
 
     try {
+      const redirectTo =
+        process.env.NEXT_PUBLIC_BASE_URL
+          ? `${process.env.NEXT_PUBLIC_BASE_URL}/auth/login`
+          : `${window.location.origin}/auth/login`
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/auth/login`,
+          emailRedirectTo: redirectTo,
           data: { full_name: fullName },
         },
       })
+
       if (error) throw error
 
-      // ✅ Redirect user to verify email page
+      // ✅ After signup, always show verify email page
       router.push("/auth/verify-email")
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred")
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred")
     } finally {
       setIsLoading(false)
     }
