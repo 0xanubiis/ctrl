@@ -20,48 +20,95 @@ export default function LoginPage() {
   useEffect(() => {
     const supabase = createClient();
 
-    const handleMagicLink = async () => {
-      // ✅ Handle Supabase redirect with access_token in hash
-      if (window.location.hash.includes("access_token")) {
-        const { error } = await supabase.auth.exchangeCodeForSession(window.location.hash);
-        if (error) {
-          console.error("Magic link error:", error.message);
-          setError(error.message);
+    const parseHashTokens = (hash: string) => {
+      const params = new URLSearchParams(hash.replace(/^#/, ""));
+      return {
+        access_token: params.get("access_token"),
+        refresh_token: params.get("refresh_token"),
+      };
+    };
+
+    const handleCallback = async () => {
+      try {
+        // 1) If the URL contains the access_token (magic-link / confirm link), parse it and set session
+        if (typeof window !== "undefined" && window.location.hash && window.location.hash.includes("access_token")) {
+          const { access_token, refresh_token } = parseHashTokens(window.location.hash);
+
+          if (access_token) {
+            // Preferred: set session explicitly with parsed tokens
+            // supabase-js v2 provides auth.setSession()
+            try {
+              await supabase.auth.setSession({
+                access_token: access_token!,
+                refresh_token: refresh_token ?? undefined,
+              });
+            } catch (err) {
+              // fallback: some helpers expose exchangeCodeForSession / setSessionFromUrl
+              // try them without disrupting flow
+              try {
+                // @ts-ignore
+                if (typeof supabase.auth.exchangeCodeForSession === "function") {
+                  // some helper versions support this
+                  // @ts-ignore
+                  await supabase.auth.exchangeCodeForSession(window.location.hash);
+                } else if (typeof (supabase.auth as any).setSessionFromUrl === "function") {
+                  // older helper name
+                  // @ts-ignore
+                  await (supabase.auth as any).setSessionFromUrl();
+                }
+              } catch (err2) {
+                console.error("Fallback session exchange failed:", err2);
+              }
+            }
+
+            // remove token from URL for security / UX
+            try {
+              window.history.replaceState({}, document.title, "/auth/login");
+            } catch (err) {
+              // ignore
+            }
+
+            // Now attempt to get session and redirect
+            const { data: { session } } = await supabase.auth.getSession();
+            if (session) {
+              router.replace("/dashboard");
+              return;
+            }
+          }
         }
 
-        // ✅ Clean the URL so tokens don't stay visible
-        window.history.replaceState({}, document.title, "/auth/login");
-      }
-
-      // ✅ Check if a session exists after login/magic link
-      const { data: { session } } = await supabase.auth.getSession();
-
-      if (session) {
-        router.replace("/dashboard");
-      } else {
+        // 2) No token in URL, just check normal session
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          router.replace("/dashboard");
+        } else {
+          setCheckingSession(false);
+        }
+      } catch (err) {
+        console.error("Auth callback handling error:", err);
         setCheckingSession(false);
       }
     };
 
-    handleMagicLink();
+    handleCallback();
 
-    // ✅ Listen for auth state changes (covers login, signup, magic link)
+    // Listen for live auth state changes as backup (SIGNED_IN via other flows)
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        router.replace("/dashboard");
-      }
+      if (session) router.replace("/dashboard");
     });
 
     return () => {
-      listener.subscription.unsubscribe();
+      try {
+        listener.subscription.unsubscribe();
+      } catch {}
     };
   }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = createClient();
     setIsLoading(true);
     setError(null);
+    const supabase = createClient();
 
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -70,8 +117,8 @@ export default function LoginPage() {
       });
       if (error) throw error;
       router.replace("/dashboard");
-    } catch (error: unknown) {
-      setError(error instanceof Error ? error.message : "An error occurred");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }

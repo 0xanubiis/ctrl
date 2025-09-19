@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { useState } from "react"
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("")
@@ -37,7 +37,10 @@ export default function SignUpPage() {
     }
 
     try {
-      const redirectTo = `${process.env.NEXT_PUBLIC_SITE_URL}/auth/login`
+      const redirectTo =
+        process.env.NEXT_PUBLIC_BASE_URL
+          ? `${process.env.NEXT_PUBLIC_BASE_URL}/auth/callback`
+          : `${window.location.origin}/auth/callback`
 
       const { error } = await supabase.auth.signUp({
         email,
@@ -50,7 +53,7 @@ export default function SignUpPage() {
 
       if (error) throw error
 
-      // ✅ Always show verify email page
+      // ✅ After signup, show verify email page
       router.push("/auth/verify-email")
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "An error occurred")
@@ -65,7 +68,7 @@ export default function SignUpPage() {
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Create your account</CardTitle>
-            <CardDescription>Start your CTRL journey today</CardDescription>
+            <CardDescription>Start your CTRL audio journey today</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignUp}>
