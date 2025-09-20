@@ -44,10 +44,10 @@ create table if not exists public.subscription_plans (
 );
 
 -- Insert default subscription plans
-insert into public.subscription_plans (id, name, description, price_monthly, price_yearly, tokens_per_month, features) values
-  ('free', 'Free', 'Perfect for trying out our AI audio features', 0, 0, 1000, '["Text-to-Speech", "Basic Voice Selection", "Standard Quality"]'::jsonb),
-  ('pro', 'Pro', 'Great for content creators and professionals', 1999, 19990, 10000, '["Text-to-Speech", "Speech-to-Text", "Premium Voices", "High Quality Audio", "Voice Cloning (3 voices)", "Priority Support"]'::jsonb),
-  ('enterprise', 'Enterprise', 'For teams and high-volume usage', 9999, 99990, 100000, '["Everything in Pro", "Unlimited Voice Cloning", "Custom Voice Training", "API Access", "White-label Options", "Dedicated Support"]'::jsonb)
+insert into public.subscription_plans (id, name, description, price_monthly, price_yearly, tokens_per_month, features, stripe_price_id_monthly, stripe_price_id_yearly) values
+  ('free', 'Free', 'Perfect for trying out our AI audio features', 0, 0, 1000, '["Text-to-Speech", "Basic Voice Selection", "Standard Quality"]'::jsonb, null, null),
+  ('pro', 'Pro', 'Great for content creators and professionals', 1999, 19990, 10000, '["Text-to-Speech", "Speech-to-Text", "Premium Voices", "High Quality Audio", "Voice Cloning (3 voices)", "Priority Support"]'::jsonb, 'price_pro_monthly', 'price_pro_yearly'),
+  ('enterprise', 'Enterprise', 'For teams and high-volume usage', 9999, 99990, 100000, '["Everything in Pro", "Unlimited Voice Cloning", "Custom Voice Training", "API Access", "White-label Options", "Dedicated Support"]'::jsonb, 'price_enterprise_monthly', 'price_enterprise_yearly')
 on conflict (id) do nothing;
 
 -- Create subscriptions table

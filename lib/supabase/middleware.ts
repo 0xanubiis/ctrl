@@ -1,7 +1,7 @@
 import { createMiddlewareClient } from "@supabase/ssr"
 import { type NextRequest, NextResponse } from "next/server"
 
-export async function middleware(request: NextRequest) {
+export async function updateSession(request: NextRequest) {
   const response = NextResponse.next({ request })
 
   const supabase = createMiddlewareClient(
@@ -54,5 +54,9 @@ export async function middleware(request: NextRequest) {
   }
 
   return response
+}
+
+export async function middleware(request: NextRequest) {
+  return await updateSession(request)
 }
 

@@ -4,9 +4,9 @@ import { getStripeCustomerByEmail, createStripeCustomer, createCheckoutSession }
 
 export async function POST(request: NextRequest) {
   try {
-    const { priceId, planId } = await request.json()
+    const { priceId, planId, billingCycle } = await request.json()
 
-    if (!priceId || !planId) {
+    if (!priceId || !planId || !billingCycle) {
       return NextResponse.json({ error: "Missing required parameters" }, { status: 400 })
     }
 
@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
       metadata: {
         userId: user.id,
         planId,
+        billingCycle,
       },
     })
 

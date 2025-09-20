@@ -23,7 +23,7 @@ export function MarketingHeader() {
             <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
               <Zap className="w-5 h-5 text-primary-foreground" />
             </div>
-            <span className="font-bold text-xl text-foreground">CTRL</span>
+            <span className="font-bold text-xl text-foreground">CTRL8</span>
           </Link>
         </div>
         <div className="flex lg:hidden">
@@ -65,7 +65,7 @@ export function MarketingHeader() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Zap className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="font-bold text-xl text-foreground">CTRL</span>
+              <span className="font-bold text-xl text-foreground">CTRL8</span>
             </Link>
             <button
               type="button"

@@ -13,20 +13,25 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Get user's token usage
-    const { data: usage, error } = await supabase
-      .from("token_usage")
-      .select("*")
+    // Get user's subscription
+    const { data: subscription, error } = await supabase
+      .from("subscriptions")
+      .select(`
+        *,
+        subscription_plans (*)
+      `)
       .eq("user_id", user.id)
+      .eq("status", "active")
+      .single()
 
-    if (error) {
-      console.error("Error fetching usage:", error)
-      return NextResponse.json({ error: "Failed to fetch usage data" }, { status: 500 })
+    if (error && error.code !== "PGRST116") {
+      console.error("Error fetching subscription:", error)
+      return NextResponse.json({ error: "Failed to fetch subscription" }, { status: 500 })
     }
 
-    return NextResponse.json({ usage })
+    return NextResponse.json({ subscription })
   } catch (error) {
-    console.error("Error in usage API:", error)
+    console.error("Error in subscription API:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

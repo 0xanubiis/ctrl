@@ -138,7 +138,7 @@ export default function LoginPage() {
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to your CTRL account</CardDescription>
+            <CardDescription>Sign in to your CTRL8 account</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleLogin}>

@@ -34,7 +34,7 @@ export function MarketingFooter() {
               <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
                 <Zap className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="font-bold text-xl text-foreground">CTRL</span>
+              <span className="font-bold text-xl text-foreground">CTRL8</span>
             </div>
             <p className="text-sm leading-6 text-muted-foreground">
               Transform your content with AI-powered audio generation. Create natural-sounding speech, transcribe audio,
@@ -85,7 +85,7 @@ export function MarketingFooter() {
           </div>
         </div>
         <div className="mt-16 border-t border-border pt-8 sm:mt-20 lg:mt-24">
-          <p className="text-xs leading-5 text-muted-foreground">&copy; 2024 CTRL. All rights reserved.</p>
+          <p className="text-xs leading-5 text-muted-foreground">&copy; 2024 CTRL8. All rights reserved.</p>
         </div>
       </div>
     </footer>

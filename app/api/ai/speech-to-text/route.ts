@@ -52,7 +52,11 @@ export async function POST(request: NextRequest) {
       filename: `stt_${Date.now()}.txt`,
       original_text: transcription,
       file_url: null, // No audio output for STT
+      file_size: 0,
+      duration_seconds: estimatedDurationSeconds,
       quality: "standard",
+      format: "txt",
+      usage_type: "stt",
       metadata: { language, originalFilename: audioFile.name, fileSize: audioFile.size },
     })
 

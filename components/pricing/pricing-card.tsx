@@ -15,20 +15,23 @@ interface PricingCardProps {
     name: string
     description: string
     price_monthly: number
+    price_yearly: number
     tokens_per_month: number
     features: string[]
-    stripe_price_id?: string
+    stripe_price_id_monthly?: string
+    stripe_price_id_yearly?: string
     is_active: boolean
   }
+  billingCycle: "monthly" | "yearly"
   isPopular?: boolean
   currentPlan?: string
 }
 
-export function PricingCard({ plan, isPopular, currentPlan }: PricingCardProps) {
+export function PricingCard({ plan, billingCycle, isPopular, currentPlan }: PricingCardProps) {
   const [isLoading, setIsLoading] = useState(false)
 
-  const price = plan.price_monthly
-  const priceId = plan.stripe_price_id
+  const price = billingCycle === "yearly" ? plan.price_yearly : plan.price_monthly
+  const priceId = billingCycle === "yearly" ? plan.stripe_price_id_yearly : plan.stripe_price_id_monthly
   const isCurrentPlan = currentPlan === plan.id
   const isFree = plan.id === "free"
 
@@ -46,6 +49,7 @@ export function PricingCard({ plan, isPopular, currentPlan }: PricingCardProps) 
         body: JSON.stringify({
           priceId,
           planId: plan.id,
+          billingCycle,
         }),
       })
 
@@ -71,7 +75,7 @@ export function PricingCard({ plan, isPopular, currentPlan }: PricingCardProps) 
         <CardDescription>{plan.description}</CardDescription>
         <div className="mt-4">
           <span className="text-4xl font-bold">${(price / 100).toFixed(0)}</span>
-          <span className="text-muted-foreground">/month</span>
+          <span className="text-muted-foreground">/{billingCycle === "yearly" ? "year" : "month"}</span>
         </div>
         <p className="text-sm text-muted-foreground">{plan.tokens_per_month.toLocaleString()} tokens per month</p>
       </CardHeader>

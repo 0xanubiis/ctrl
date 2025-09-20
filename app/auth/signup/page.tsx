@@ -68,7 +68,7 @@ export default function SignUpPage() {
         <Card>
           <CardHeader className="text-center">
             <CardTitle className="text-2xl">Create your account</CardTitle>
-            <CardDescription>Start your CTRL audio journey today</CardDescription>
+            <CardDescription>Start your CTRL8 audio journey today</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSignUp}>

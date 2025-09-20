@@ -31,7 +31,7 @@ export default async function AdminOverviewPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Admin Overview</h1>
-        <p className="text-muted-foreground">Monitor your CTRL SaaS platform</p>
+        <p className="text-muted-foreground">Monitor your CTRL8 SaaS platform</p>
       </div>
 
       {/* Key Metrics */}

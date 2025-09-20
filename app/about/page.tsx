@@ -106,7 +106,7 @@ export default function AboutPage() {
             <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
               <Zap className="w-7 h-7 text-primary-foreground" />
             </div>
-            <h1 className="text-4xl font-bold text-foreground">CTRL</h1>
+            <h1 className="text-4xl font-bold text-foreground">CTRL8</h1>
           </div>
           <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
             Transform your audio content with cutting-edge artificial intelligence. From voice enhancement to smart
@@ -205,7 +205,7 @@ export default function AboutPage() {
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-3xl font-bold text-foreground mb-4">Ready to Transform Your Audio Content?</h2>
           <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
-            Join thousands of creators who are already using CTRL to enhance their content. Start your free trial today
+            Join thousands of creators who are already using CTRL8 to enhance their content. Start your free trial today
             and experience the power of AI-driven audio processing.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

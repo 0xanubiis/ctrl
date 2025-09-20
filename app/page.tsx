@@ -31,7 +31,7 @@ const testimonials = [
   {
     name: "Sarah Johnson",
     role: "Content Creator",
-    content: "CTRL has revolutionized my content creation process. The voice quality is incredible!",
+    content: "CTRL8 has revolutionized my content creation process. The voice quality is incredible!",
     rating: 5,
   },
   {
@@ -79,7 +79,7 @@ export default function HomePage() {
             </Badge>
             <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-6xl text-balance">
               Transform Your Content with{" "}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">CTRL</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">CTRL8</span>
             </h1>
             <p className="mt-6 text-lg leading-8 text-muted-foreground text-pretty">
               Create natural-sounding speech, transcribe audio with precision, and clone voices using cutting-edge AI
@@ -112,7 +112,7 @@ export default function HomePage() {
                 Trusted by creators worldwide
               </h2>
               <p className="mt-4 text-lg leading-8 text-muted-foreground">
-                Join thousands of content creators who use CTRL to enhance their work
+                Join thousands of content creators who use CTRL8 to enhance their work
               </p>
             </div>
             <dl className="mt-16 grid grid-cols-1 gap-0.5 overflow-hidden rounded-2xl text-center sm:grid-cols-2 lg:grid-cols-4">
@@ -166,7 +166,7 @@ export default function HomePage() {
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">What our customers say</h2>
             <p className="mt-6 text-lg leading-8 text-muted-foreground">
-              Don't just take our word for it - hear from content creators who love CTRL
+              Don't just take our word for it - hear from content creators who love CTRL8
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-8 lg:mx-0 lg:max-w-none lg:grid-cols-3">
@@ -198,7 +198,7 @@ export default function HomePage() {
               Ready to transform your audio content?
             </h2>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
-              Join thousands of creators who are already using CTRL to enhance their content. Start your free trial
+              Join thousands of creators who are already using CTRL8 to enhance their content. Start your free trial
               today.
             </p>
             <div className="mt-10 flex items-center justify-center gap-x-6">

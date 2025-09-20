@@ -16,7 +16,7 @@ const robotoMono = Roboto_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CTRL - Transform Your Content with AI",
+  title: "CTRL8 - Transform Your Content with AI",
   description:
     "Create natural-sounding speech, transcribe audio, and clone voices using cutting-edge AI technology. Perfect for content creators, podcasters, and businesses.",
   keywords:

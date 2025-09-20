@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server"
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData()
-    const voiceSample = formData.get("voiceSample") as File
-    const voiceName = formData.get("voiceName") as string
+    const voiceSample = formData.get("audio") as File
+    const voiceName = formData.get("name") as string
     const description = formData.get("description") as string
 
     if (!voiceSample || !voiceName) {
@@ -46,11 +46,10 @@ export async function POST(request: NextRequest) {
     // Save voice clone record
     const { error: voiceError } = await supabase.from("voice_clones").insert({
       user_id: user.id,
-      voice_id: voiceId,
-      voice_name: voiceName,
+      name: voiceName,
       description,
-      sample_url: `/placeholder-audio.mp3`, // In real implementation, upload to storage
-      status: "processing",
+      sample_audio_url: `/placeholder-audio.mp3`, // In real implementation, upload to storage
+      status: "training",
       metadata: { originalFilename: voiceSample.name, fileSize: voiceSample.size },
     })
 
