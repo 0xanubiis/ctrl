@@ -4,18 +4,30 @@ import { type NextRequest, NextResponse } from "next/server"
 export async function updateSession(request: NextRequest) {
   const response = NextResponse.next({ request })
 
+  // Check if Supabase environment variables are configured
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.error('Missing Supabase environment variables')
+    return response
+  }
+
   const supabase = createMiddlewareClient(
     { req: request, res: response },
     {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     }
   )
 
   try {
     const {
       data: { user },
+      error: authError,
     } = await supabase.auth.getUser()
+
+    if (authError) {
+      console.error('Auth error in middleware:', authError)
+      // Continue without user if auth fails
+    }
 
     // Protect /admin
     if (request.nextUrl.pathname.startsWith("/admin")) {
@@ -25,11 +37,27 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url)
       }
 
-      const { data: isAdmin } = await supabase.rpc("is_admin", {
-        user_uuid: user.id,
-      })
+      try {
+        const { data: isAdmin, error: adminError } = await supabase.rpc("is_admin", {
+          user_uuid: user.id,
+        })
 
-      if (!isAdmin) {
+        if (adminError) {
+          console.error('Admin check error:', adminError)
+          // If admin check fails, redirect to dashboard for safety
+          const url = request.nextUrl.clone()
+          url.pathname = "/dashboard"
+          return NextResponse.redirect(url)
+        }
+
+        if (!isAdmin) {
+          const url = request.nextUrl.clone()
+          url.pathname = "/dashboard"
+          return NextResponse.redirect(url)
+        }
+      } catch (rpcError) {
+        console.error('RPC call failed:', rpcError)
+        // If RPC fails, redirect to dashboard for safety
         const url = request.nextUrl.clone()
         url.pathname = "/dashboard"
         return NextResponse.redirect(url)
@@ -50,7 +78,8 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
   } catch (error) {
-    // Fail silently, continue request
+    // Log error for debugging but continue request
+    console.error('Middleware error:', error)
   }
 
   return response
