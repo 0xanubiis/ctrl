@@ -39,8 +39,8 @@ export default function LoginPage() {
             // supabase-js v2 provides auth.setSession()
             try {
               await supabase.auth.setSession({
-                access_token: access_token!,
-                refresh_token: refresh_token ?? undefined,
+                access_token: access_token,
+                refresh_token: refresh_token || "",
               });
             } catch (err) {
               // fallback: some helpers expose exchangeCodeForSession / setSessionFromUrl
@@ -108,17 +108,44 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    const supabase = createClient();
-
+    
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const supabase = createClient();
+
+      // Check if Supabase client was created successfully
+      if (!supabase) {
+        throw new Error("Failed to initialize authentication client. Please check your environment configuration.");
+      }
+
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      if (error) throw error;
-      router.replace("/dashboard");
+
+      if (error) {
+        console.error("Authentication error:", error);
+        
+        // Provide more specific error messages
+        if (error.message.includes("Invalid login credentials")) {
+          throw new Error("Invalid email or password. Please check your credentials and try again.");
+        } else if (error.message.includes("Email not confirmed")) {
+          throw new Error("Please check your email and click the confirmation link before signing in.");
+        } else if (error.message.includes("Too many requests")) {
+          throw new Error("Too many login attempts. Please wait a moment and try again.");
+        } else {
+          throw new Error(`Authentication failed: ${error.message}`);
+        }
+      }
+
+      if (data.session) {
+        console.log("Login successful, redirecting to dashboard...");
+        router.replace("/dashboard");
+      } else {
+        throw new Error("Login successful but no session was created. Please try again.");
+      }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "An error occurred");
+      console.error("Login error:", err);
+      setError(err instanceof Error ? err.message : "An unexpected error occurred during login. Please try again.");
     } finally {
       setIsLoading(false);
     }

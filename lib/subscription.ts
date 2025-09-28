@@ -103,3 +103,28 @@ export async function resetUserTokens(userId: string, planId: string) {
     })
   }
 }
+
+export async function updateSubscriptionPlan(
+  stripeSubscriptionId: string,
+  newPlanId: string,
+  userId: string,
+) {
+  const supabase = await createClient()
+
+  // Update the subscription plan
+  const { error: updateError } = await supabase
+    .from("subscriptions")
+    .update({ 
+      plan_id: newPlanId,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("stripe_subscription_id", stripeSubscriptionId)
+
+  if (updateError) {
+    console.error("Error updating subscription plan:", updateError)
+    throw updateError
+  }
+
+  // Reset tokens for the new plan
+  await resetUserTokens(userId, newPlanId)
+}

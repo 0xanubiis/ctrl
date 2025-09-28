@@ -1,4 +1,4 @@
-import { createMiddlewareClient } from "@supabase/ssr"
+import { createServerClient } from "@supabase/ssr"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function updateSession(request: NextRequest) {
@@ -10,11 +10,19 @@ export async function updateSession(request: NextRequest) {
     return response
   }
 
-  const supabase = createMiddlewareClient(
-    { req: request, res: response },
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
-      supabaseUrl: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      supabaseKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      cookies: {
+        get: (key: string) => request.cookies.get(key)?.value,
+        set: (key: string, value: string, options: any) => {
+          response.cookies.set({ name: key, value, ...options })
+        },
+        remove: (key: string, options: any) => {
+          response.cookies.set({ name: key, value: "", ...options })
+        },
+      },
     }
   )
 
@@ -83,9 +91,5 @@ export async function updateSession(request: NextRequest) {
   }
 
   return response
-}
-
-export async function middleware(request: NextRequest) {
-  return await updateSession(request)
 }
 

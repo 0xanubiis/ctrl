@@ -77,12 +77,44 @@ export async function POST(request: NextRequest) {
       case "customer.subscription.updated": {
         const subscription = event.data.object as Stripe.Subscription
 
-        await updateSubscriptionStatus(
-          subscription.id,
-          subscription.status,
-          new Date(subscription.current_period_start * 1000),
-          new Date(subscription.current_period_end * 1000),
-        )
+        // Check if the subscription has a plan change
+        const { data: existingSubscription } = await supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("stripe_subscription_id", subscription.id)
+          .single()
+
+        if (existingSubscription) {
+          // Update subscription status and period
+          await updateSubscriptionStatus(
+            subscription.id,
+            subscription.status,
+            new Date(subscription.current_period_start * 1000),
+            new Date(subscription.current_period_end * 1000),
+          )
+
+          // Check if the plan has changed by comparing the price ID
+          const currentPriceId = subscription.items.data[0]?.price.id
+          if (currentPriceId && existingSubscription.plan_id) {
+            // Get the plan ID from the price ID (you may need to map this)
+            const { data: plan } = await supabase
+              .from("subscription_plans")
+              .select("id")
+              .or(`stripe_price_id_monthly.eq.${currentPriceId},stripe_price_id_yearly.eq.${currentPriceId}`)
+              .single()
+
+            if (plan && plan.id !== existingSubscription.plan_id) {
+              // Plan has changed - update the plan and reset tokens
+              await supabase
+                .from("subscriptions")
+                .update({ plan_id: plan.id })
+                .eq("stripe_subscription_id", subscription.id)
+
+              // Reset tokens for the new plan
+              await resetUserTokens(existingSubscription.user_id, plan.id)
+            }
+          }
+        }
         break
       }
 

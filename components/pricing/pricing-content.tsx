@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { PricingCard } from "@/components/pricing/pricing-card"
 import { Badge } from "@/components/ui/badge"
+import { CheckCircle } from "lucide-react"
 
 interface PricingContentProps {
   plans: any[]
