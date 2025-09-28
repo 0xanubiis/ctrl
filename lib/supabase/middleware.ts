@@ -2,7 +2,7 @@ import { createMiddlewareClient } from "@supabase/ssr"
 import { type NextRequest, NextResponse } from "next/server"
 
 export async function updateSession(request: NextRequest) {
-  const response = NextResponse.next({ request })
+  const response = NextResponse.next()
 
   // Check if Supabase environment variables are configured
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
