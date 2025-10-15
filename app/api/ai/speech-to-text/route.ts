@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import OpenAI from "openai"
 
 export const dynamic = 'force-dynamic'
 
@@ -23,11 +24,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Calculate token cost (rough estimate: 1 token per second of audio)
-    // In a real implementation, you'd get the actual duration
+    // Calculate token cost (OpenAI Whisper charges per minute)
     const fileSizeInMB = audioFile.size / (1024 * 1024)
-    const estimatedDurationSeconds = Math.ceil(fileSizeInMB * 60) // Rough estimate
-    const tokenCost = estimatedDurationSeconds
+    const estimatedDurationMinutes = Math.max(1, Math.ceil(fileSizeInMB * 60 / 1024)) // Rough estimate
+    const tokenCost = estimatedDurationMinutes // 1 token per minute
 
     // Check if user has enough tokens
     const { data: canConsume } = await supabase.rpc("consume_tokens", {
@@ -36,17 +36,49 @@ export async function POST(request: NextRequest) {
       usage_type_param: "stt",
       input_text_param: `Audio file: ${audioFile.name}`,
       voice_id_param: null,
-      metadata_param: { language, fileSize: audioFile.size },
+      metadata_param: { language, fileSize: audioFile.size, durationMinutes: estimatedDurationMinutes },
     })
 
     if (!canConsume) {
       return NextResponse.json({ error: "Insufficient tokens" }, { status: 402 })
     }
 
-    // Here you would integrate with a speech-to-text service like OpenAI Whisper
-    // For now, we'll simulate the response
-    const transcription =
-      "This is a simulated transcription of the uploaded audio file. In a real implementation, this would be the actual transcribed text from the audio."
+    // Initialize OpenAI client
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
+
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json({ error: "OpenAI API key not configured" }, { status: 500 })
+    }
+
+    // Convert File to Buffer for OpenAI API
+    const audioBuffer = await audioFile.arrayBuffer()
+    const audioBlob = new Blob([audioBuffer], { type: audioFile.type })
+    
+    // Create FormData for OpenAI API
+    const openaiFormData = new FormData()
+    openaiFormData.append('file', audioBlob, audioFile.name)
+    openaiFormData.append('model', 'whisper-1')
+    openaiFormData.append('language', language)
+    openaiFormData.append('response_format', 'text')
+
+    // Call OpenAI Whisper API
+    const transcriptionResponse = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: openaiFormData,
+    })
+
+    if (!transcriptionResponse.ok) {
+      const errorText = await transcriptionResponse.text()
+      console.error("OpenAI Whisper API error:", errorText)
+      return NextResponse.json({ error: "Failed to transcribe audio" }, { status: 500 })
+    }
+
+    const transcription = await transcriptionResponse.text()
 
     // Save transcription record
     const { error: fileError } = await supabase.from("audio_files").insert({
@@ -54,12 +86,18 @@ export async function POST(request: NextRequest) {
       filename: `stt_${Date.now()}.txt`,
       original_text: transcription,
       file_url: null, // No audio output for STT
-      file_size: 0,
-      duration_seconds: estimatedDurationSeconds,
+      file_size: audioFile.size,
+      duration_seconds: estimatedDurationMinutes * 60,
       quality: "standard",
       format: "txt",
       usage_type: "stt",
-      metadata: { language, originalFilename: audioFile.name, fileSize: audioFile.size },
+      metadata: { 
+        language, 
+        originalFilename: audioFile.name, 
+        fileSize: audioFile.size,
+        durationMinutes: estimatedDurationMinutes,
+        model: "whisper-1"
+      },
     })
 
     if (fileError) {

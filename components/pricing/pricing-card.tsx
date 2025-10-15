@@ -53,14 +53,28 @@ export function PricingCard({ plan, billingCycle, isPopular, currentPlan }: Pric
         }),
       })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to create checkout session")
+      }
+
       const { sessionId } = await response.json()
+      
+      if (!sessionId) {
+        throw new Error("No session ID received")
+      }
+
       const stripe = await stripePromise
 
       if (stripe) {
-        await stripe.redirectToCheckout({ sessionId })
+        const { error } = await stripe.redirectToCheckout({ sessionId })
+        if (error) {
+          console.error("Stripe redirect error:", error)
+        }
       }
     } catch (error) {
       console.error("Error creating checkout session:", error)
+      alert("Failed to start checkout process. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -73,11 +87,16 @@ export function PricingCard({ plan, billingCycle, isPopular, currentPlan }: Pric
       <CardHeader className="text-center">
         <CardTitle className="text-2xl">{plan.name}</CardTitle>
         <CardDescription>{plan.description}</CardDescription>
-        <div className="mt-4">
-          <span className="text-4xl font-bold">${(price / 100).toFixed(0)}</span>
-          <span className="text-muted-foreground">/{billingCycle === "yearly" ? "year" : "month"}</span>
+        <div className="mt-6">
+          <div className="flex items-baseline justify-center">
+            <span className="text-5xl font-bold text-foreground">${(price / 100).toFixed(0)}</span>
+            <span className="text-lg text-muted-foreground ml-2">/{billingCycle === "yearly" ? "year" : "month"}</span>
+          </div>
+          {billingCycle === "yearly" && (
+            <p className="text-sm text-green-600 font-medium mt-2">Save 20% with annual billing</p>
+          )}
         </div>
-        <p className="text-sm text-muted-foreground">{plan.tokens_per_month.toLocaleString()} tokens per month</p>
+        <p className="text-sm text-muted-foreground mt-2">{plan.tokens_per_month.toLocaleString()} tokens per month</p>
       </CardHeader>
 
       <CardContent>

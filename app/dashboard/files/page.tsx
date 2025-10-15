@@ -5,7 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { FileAudio, Play, Download, Trash2, Search, Filter, Calendar, Clock } from "lucide-react"
+import { FileAudio, Play, Download, Trash2, Search, Filter, Calendar, Clock, Users, Mic } from "lucide-react"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { AlertCircle } from "lucide-react"
 
@@ -23,15 +24,29 @@ interface AudioFile {
   usage_type: string
 }
 
+interface VoiceClone {
+  id: string
+  name: string
+  description: string
+  voice_id: string
+  sample_audio_url: string
+  status: string
+  created_at: string
+  metadata: any
+}
+
 export default function AudioFilesPage() {
   const [files, setFiles] = useState<AudioFile[]>([])
+  const [voiceClones, setVoiceClones] = useState<VoiceClone[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState("")
   const [filterType, setFilterType] = useState("all")
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<"files" | "voices">("files")
 
   useEffect(() => {
     fetchFiles()
+    fetchVoiceClones()
   }, [])
 
   const fetchFiles = async () => {
@@ -49,6 +64,21 @@ export default function AudioFilesPage() {
       console.error("Error fetching files:", error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchVoiceClones = async () => {
+    try {
+      const response = await fetch("/api/user/voice-clones")
+      const data = await response.json()
+      
+      if (response.ok) {
+        setVoiceClones(data.voiceClones || [])
+      } else {
+        console.error("Failed to fetch voice clones:", data.error)
+      }
+    } catch (error) {
+      console.error("Error fetching voice clones:", error)
     }
   }
 

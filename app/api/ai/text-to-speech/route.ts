@@ -22,22 +22,26 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const tokenCost = Math.max(1, Math.ceil(text.length / 4)) // 1 token per ~4 characters
+    // Calculate tokens based on sentences (1 token per sentence, minimum 1)
+    const sentences = text.split(/[.!?]+/).filter(sentence => sentence.trim().length > 0)
+    const tokenCost = Math.max(1, sentences.length)
 
-    const { data: tokenUsage } = await supabase
-      .from("token_usage")
-      .select("tokens_remaining, usage_type")
-      .eq("user_id", user.id)
-      .eq("usage_type", "tts")
-      .gt("reset_date", new Date().toISOString())
-      .single()
+    // Check and consume tokens using RPC function
+    const { data: canConsume } = await supabase.rpc("consume_tokens", {
+      user_uuid: user.id,
+      tokens_to_consume: tokenCost,
+      usage_type_param: "tts",
+      input_text_param: text,
+      voice_id_param: voice,
+      output_url_param: null, // Will be updated after generation
+      metadata_param: { quality, voice, textLength: text.length, sentenceCount: sentences.length },
+    })
 
-    if (!tokenUsage || !validateTokenConsumption(tokenCost, tokenUsage.tokens_remaining)) {
+    if (!canConsume) {
       return NextResponse.json(
         {
           error: "Insufficient tokens",
           tokensNeeded: tokenCost,
-          tokensRemaining: tokenUsage?.tokens_remaining || 0,
         },
         { status: 402 },
       )
@@ -90,8 +94,25 @@ export async function POST(request: NextRequest) {
       duration_seconds: Math.ceil(text.length / 15), // Rough estimate: 15 chars per second
       quality,
       format: "mp3",
-      metadata: { quality, voice, model: quality === "high" ? "eleven_multilingual_v2" : "eleven_monolingual_v1" },
+      usage_type: "tts",
+      metadata: { 
+        quality, 
+        voice, 
+        model: quality === "high" ? "eleven_multilingual_v2" : "eleven_monolingual_v1",
+        sentenceCount: sentences.length,
+        tokenCost
+      },
     })
+
+    // Update the usage log with output URL
+    await supabase
+      .from("usage_logs")
+      .update({ output_url: audioUrl })
+      .eq("user_id", user.id)
+      .eq("usage_type", "tts")
+      .eq("input_text", text)
+      .order("created_at", { ascending: false })
+      .limit(1)
 
     if (fileError) {
       console.error("Error saving audio file:", fileError)

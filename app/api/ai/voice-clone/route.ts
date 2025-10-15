@@ -41,18 +41,60 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Insufficient tokens" }, { status: 402 })
     }
 
-    // Here you would integrate with a voice cloning service
-    // For now, we'll simulate the response
-    const voiceId = `voice_${Date.now()}`
+    // Upload audio sample to ElevenLabs
+    const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY
+    if (!elevenLabsApiKey) {
+      return NextResponse.json({ error: "ElevenLabs API key not configured" }, { status: 500 })
+    }
+
+    // Convert File to Buffer for ElevenLabs API
+    const audioBuffer = await voiceSample.arrayBuffer()
+    const audioBlob = new Blob([audioBuffer], { type: voiceSample.type })
+    
+    // Create FormData for ElevenLabs API
+    const elevenLabsFormData = new FormData()
+    elevenLabsFormData.append('name', voiceName)
+    elevenLabsFormData.append('files', audioBlob, voiceSample.name)
+    elevenLabsFormData.append('description', description || 'Custom voice clone')
+    elevenLabsFormData.append('labels', JSON.stringify({
+      'accent': 'american',
+      'age': 'young',
+      'gender': 'male',
+      'use case': 'narration'
+    }))
+
+    // Call ElevenLabs Voice Cloning API
+    const cloneResponse = await fetch('https://api.elevenlabs.io/v1/voices/add', {
+      method: 'POST',
+      headers: {
+        'xi-api-key': elevenLabsApiKey,
+      },
+      body: elevenLabsFormData,
+    })
+
+    if (!cloneResponse.ok) {
+      const errorText = await cloneResponse.text()
+      console.error("ElevenLabs Voice Clone API error:", errorText)
+      return NextResponse.json({ error: "Failed to create voice clone" }, { status: 500 })
+    }
+
+    const cloneData = await cloneResponse.json()
+    const voiceId = cloneData.voice_id
 
     // Save voice clone record
     const { error: voiceError } = await supabase.from("voice_clones").insert({
       user_id: user.id,
       name: voiceName,
       description,
+      voice_id: voiceId,
       sample_audio_url: `/placeholder-audio.mp3`, // In real implementation, upload to storage
       status: "training",
-      metadata: { originalFilename: voiceSample.name, fileSize: voiceSample.size },
+      metadata: { 
+        originalFilename: voiceSample.name, 
+        fileSize: voiceSample.size,
+        elevenLabsVoiceId: voiceId,
+        elevenLabsData: cloneData
+      },
     })
 
     if (voiceError) {

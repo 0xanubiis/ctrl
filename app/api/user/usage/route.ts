@@ -26,7 +26,42 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch usage data" }, { status: 500 })
     }
 
-    return NextResponse.json({ usage })
+    // Get detailed usage logs
+    const { data: usageLogs, error: logsError } = await supabase
+      .from("usage_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50)
+
+    if (logsError) {
+      console.error("Error fetching usage logs:", logsError)
+    }
+
+    // Get subscription info for token limits
+    const { data: subscription, error: subError } = await supabase
+      .from("subscriptions")
+      .select(`
+        *,
+        subscription_plans (
+          id,
+          name,
+          tokens_per_month
+        )
+      `)
+      .eq("user_id", user.id)
+      .eq("status", "active")
+      .single()
+
+    if (subError) {
+      console.error("Error fetching subscription:", subError)
+    }
+
+    return NextResponse.json({ 
+      usage,
+      usageLogs: usageLogs || [],
+      subscription: subscription || null
+    })
   } catch (error) {
     console.error("Error in usage API:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })

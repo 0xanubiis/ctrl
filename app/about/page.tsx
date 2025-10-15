@@ -3,6 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import { Zap, Mic, AudioWaveform as Waveform, Sparkles, Users, Shield, Clock, Star, ArrowLeft } from "lucide-react"
 import Link from "next/link"
+import { createClient } from "@/lib/supabase/server"
+import { Suspense } from "react"
+import { MarketingHeader } from "@/components/marketing/marketing-header"
+import { MarketingFooter } from "@/components/marketing/marketing-footer"
 
 const features = [
   {
@@ -40,56 +44,102 @@ const features = [
   },
 ]
 
-const pricingPlans = [
-  {
-    name: "Free",
-    price: "$0",
-    period: "forever",
-    description: "Perfect for getting started with AI audio processing",
-    features: [
-      "1,000 processing tokens/month",
-      "Basic audio enhancement",
-      "Standard transcription",
-      "Community support",
-    ],
-    popular: false,
-  },
-  {
-    name: "Pro",
-    price: "$19.99",
-    period: "per month",
-    description: "Ideal for content creators and professionals",
-    features: [
-      "10,000 processing tokens/month",
-      "Advanced AI enhancement",
-      "Premium transcription with speaker ID",
-      "Priority support",
-      "Collaboration tools",
-      "Export in multiple formats",
-    ],
-    popular: true,
-  },
-  {
-    name: "Enterprise",
-    price: "$99.99",
-    period: "per month",
-    description: "For teams and organizations with high-volume needs",
-    features: [
-      "100,000 processing tokens/month",
-      "Custom AI models",
-      "Advanced analytics",
-      "Dedicated support",
-      "SSO integration",
-      "Custom integrations",
-      "SLA guarantee",
-    ],
-    popular: false,
-  },
-]
+async function PricingPlansData() {
+  const supabase = await createClient()
+  const { data: plans } = await supabase
+    .from("subscription_plans")
+    .select("*")
+    .eq("is_active", true)
+    .neq("id", "free")
+    .order("price_monthly", { ascending: true })
+
+  if (!plans || plans.length === 0) {
+    return (
+      <div className="text-center text-muted-foreground">
+        <p>Pricing plans are being updated. Please check back soon.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid md:grid-cols-3 gap-8">
+      {/* Free Plan */}
+      <Card className="border-border">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Free</CardTitle>
+          <div className="mt-4">
+            <span className="text-4xl font-bold text-foreground">$0</span>
+            <span className="text-muted-foreground ml-2">/month</span>
+          </div>
+          <CardDescription className="mt-2">Perfect for getting started with AI audio processing</CardDescription>
+          <p className="text-sm text-muted-foreground mt-2">1,000 tokens per month</p>
+        </CardHeader>
+        <CardContent>
+          <ul className="space-y-3 mb-6">
+            {[
+              "1,000 processing tokens/month",
+              "Basic audio enhancement",
+              "Standard transcription",
+              "Community support"
+            ].map((feature, featureIndex) => (
+              <li key={featureIndex} className="flex items-center gap-2">
+                <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center">
+                  <div className="w-2 h-2 bg-primary rounded-full" />
+                </div>
+                <span className="text-sm text-muted-foreground">{feature}</span>
+              </li>
+            ))}
+          </ul>
+          <Button asChild className="w-full" variant="outline">
+            <Link href="/auth/signup">Get Started</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Paid Plans */}
+      {plans.map((plan, index) => (
+        <Card key={plan.id} className={`relative border-border ${plan.id === "pro" ? "ring-2 ring-primary" : ""}`}>
+          {plan.id === "pro" && (
+            <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground">
+              <Star className="w-3 h-3 mr-1" />
+              Most Popular
+            </Badge>
+          )}
+          <CardHeader className="text-center">
+            <CardTitle className="text-2xl">{plan.name}</CardTitle>
+            <div className="mt-4">
+              <span className="text-4xl font-bold text-foreground">${(plan.price_monthly / 100).toFixed(0)}</span>
+              <span className="text-muted-foreground ml-2">/month</span>
+            </div>
+            <CardDescription className="mt-2">{plan.description}</CardDescription>
+            <p className="text-sm text-muted-foreground mt-2">{plan.tokens_per_month.toLocaleString()} tokens per month</p>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3 mb-6">
+              {plan.features.map((feature: string, featureIndex: number) => (
+                <li key={featureIndex} className="flex items-center gap-2">
+                  <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center">
+                    <div className="w-2 h-2 bg-primary rounded-full" />
+                  </div>
+                  <span className="text-sm text-muted-foreground">{feature}</span>
+                </li>
+              ))}
+            </ul>
+            <Button asChild className="w-full" variant={plan.id === "pro" ? "default" : "outline"}>
+              <Link href="/pricing">View Details</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  )
+}
 
 export default function AboutPage() {
   return (
     <div className="min-h-screen bg-background">
+      <MarketingHeader />
+      
       <div className="px-6 py-4 border-b border-border">
         <Button asChild variant="ghost" size="sm">
           <Link href="/" className="flex items-center gap-2">
@@ -162,41 +212,28 @@ export default function AboutPage() {
               and advanced capabilities.
             </p>
           </div>
-          <div className="grid md:grid-cols-3 gap-8">
-            {pricingPlans.map((plan, index) => (
-              <Card key={index} className={`relative border-border ${plan.popular ? "ring-2 ring-primary" : ""}`}>
-                {plan.popular && (
-                  <Badge className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-primary text-primary-foreground">
-                    <Star className="w-3 h-3 mr-1" />
-                    Most Popular
-                  </Badge>
-                )}
-                <CardHeader className="text-center">
-                  <CardTitle className="text-2xl">{plan.name}</CardTitle>
-                  <div className="mt-4">
-                    <span className="text-4xl font-bold text-foreground">{plan.price}</span>
-                    <span className="text-muted-foreground ml-2">/{plan.period}</span>
-                  </div>
-                  <CardDescription className="mt-2">{plan.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <ul className="space-y-3 mb-6">
-                    {plan.features.map((feature, featureIndex) => (
-                      <li key={featureIndex} className="flex items-center gap-2">
-                        <div className="w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center">
-                          <div className="w-2 h-2 bg-primary rounded-full" />
-                        </div>
-                        <span className="text-sm text-muted-foreground">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button asChild className="w-full" variant={plan.popular ? "default" : "outline"}>
-                    <Link href="/auth/signup">{plan.name === "Free" ? "Get Started" : "Start Free Trial"}</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <Suspense fallback={
+            <div className="grid md:grid-cols-3 gap-8">
+              {[1, 2, 3].map((i) => (
+                <Card key={i} className="border-border animate-pulse">
+                  <CardHeader className="text-center">
+                    <div className="h-8 bg-muted rounded mb-2"></div>
+                    <div className="h-6 bg-muted rounded mb-4"></div>
+                    <div className="h-12 bg-muted rounded mb-2"></div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {[1, 2, 3, 4].map((j) => (
+                        <div key={j} className="h-4 bg-muted rounded"></div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          }>
+            <PricingPlansData />
+          </Suspense>
         </div>
       </section>
 
@@ -218,6 +255,8 @@ export default function AboutPage() {
           </div>
         </div>
       </section>
+      
+      <MarketingFooter />
     </div>
   )
 }
