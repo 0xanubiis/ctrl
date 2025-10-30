@@ -31,24 +31,25 @@ export function AdminHeader({ user }: AdminHeaderProps) {
     "A"
 
   return (
-    <header className="h-16 border-b border-border bg-background px-6 flex items-center justify-between">
-      <div className="flex items-center gap-4">
-        <Badge variant="secondary" className="bg-primary/10 text-primary">
+    <header className="h-16 border-b border-border bg-background px-3 sm:px-6 flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+        <Badge variant="secondary" className="bg-primary/10 text-primary text-xs shrink-0">
           <Shield className="w-3 h-3 mr-1" />
-          Admin Mode
+          <span className="hidden sm:inline">Admin Mode</span>
         </Badge>
-        <Button asChild variant="outline" size="sm">
+        <Button asChild variant="outline" size="sm" className="text-xs sm:text-sm">
           <Link href="/dashboard">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Dashboard
+            <ArrowLeft className="w-4 h-4 mr-1 sm:mr-2" />
+            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="sm:hidden">Back</span>
           </Link>
         </Button>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full shrink-0">
               <Avatar className="h-8 w-8">
                 <AvatarImage
                   src={user.user_metadata?.avatar_url || "/placeholder.svg"}

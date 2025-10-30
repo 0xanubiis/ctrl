@@ -1,25 +1,26 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { Mic, Upload, Download, Loader2, AlertCircle, FileAudio } from "lucide-react"
+import { Mic, Upload, Download, Loader2, AlertCircle, FileAudio, Lock } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
+import Link from "next/link"
 
 const languages = [
-  { id: "en", name: "English", flag: "🇺🇸" },
-  { id: "es", name: "Spanish", flag: "🇪🇸" },
-  { id: "fr", name: "French", flag: "🇫🇷" },
-  { id: "de", name: "German", flag: "🇩🇪" },
-  { id: "it", name: "Italian", flag: "🇮🇹" },
-  { id: "pt", name: "Portuguese", flag: "🇵🇹" },
-  { id: "ru", name: "Russian", flag: "🇷🇺" },
-  { id: "ja", name: "Japanese", flag: "🇯🇵" },
-  { id: "ko", name: "Korean", flag: "🇰🇷" },
-  { id: "zh", name: "Chinese", flag: "🇨🇳" },
+  { id: "en", name: "English", flag: "🇺🇸", plan: "free" },
+  { id: "es", name: "Spanish", flag: "🇪🇸", plan: "free" },
+  { id: "fr", name: "French", flag: "🇫🇷", plan: "free" },
+  { id: "de", name: "German", flag: "🇩🇪", plan: "starter" },
+  { id: "it", name: "Italian", flag: "🇮🇹", plan: "starter" },
+  { id: "pt", name: "Portuguese", flag: "🇵🇹", plan: "starter" },
+  { id: "ru", name: "Russian", flag: "🇷🇺", plan: "pro" },
+  { id: "ja", name: "Japanese", flag: "🇯🇵", plan: "pro" },
+  { id: "ko", name: "Korean", flag: "🇰🇷", plan: "pro" },
+  { id: "zh", name: "Chinese", flag: "🇨🇳", plan: "premium" },
 ]
 
 export default function SpeechToTextPage() {
@@ -29,6 +30,37 @@ export default function SpeechToTextPage() {
   const [transcription, setTranscription] = useState<string | null>(null)
   const [tokensUsed, setTokensUsed] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [userPlan, setUserPlan] = useState<string>("free")
+
+  useEffect(() => {
+    fetchUserPlan()
+  }, [])
+
+  const fetchUserPlan = async () => {
+    try {
+      const response = await fetch("/api/user/subscription")
+      if (response.ok) {
+        const data = await response.json()
+        const planName = data?.subscription_plans?.name?.toLowerCase() || "free"
+        setUserPlan(planName)
+      }
+    } catch (error) {
+      console.error("Error fetching user plan:", error)
+    }
+  }
+
+  // Plan hierarchy for feature gating
+  const planHierarchy = { free: 0, starter: 1, pro: 2, premium: 3 }
+
+  // Check if language is available for user's plan
+  const isLanguageAvailable = (language: any) => {
+    const languagePlanLevel = planHierarchy[language.plan as keyof typeof planHierarchy] || 0
+    const userPlanLevel = planHierarchy[userPlan as keyof typeof planHierarchy] || 0
+    return userPlanLevel >= languagePlanLevel
+  }
+
+  const availableLanguages = languages.filter(isLanguageAvailable)
+  const premiumLanguages = languages.filter(l => !isLanguageAvailable(l))
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -68,6 +100,11 @@ export default function SpeechToTextPage() {
       if (response.ok) {
         setTranscription(data.transcription)
         setTokensUsed(data.tokensUsed)
+        
+        // Trigger dashboard refresh to update usage
+        if (typeof window !== 'undefined' && window.dispatchEvent) {
+          window.dispatchEvent(new Event('dashboard:refresh'))
+        }
       } else {
         setError(data.error || "Failed to transcribe audio")
       }
@@ -94,10 +131,10 @@ export default function SpeechToTextPage() {
   const estimatedTokens = audioFile ? Math.ceil(audioFile.size / (1024 * 1024) * 60) : 0
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Speech to Text</h1>
-        <p className="text-muted-foreground">Convert your audio files into accurate text using AI transcription</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Speech to Text</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Convert your audio files into accurate text using AI transcription</p>
       </div>
 
       {error && (
@@ -107,8 +144,8 @@ export default function SpeechToTextPage() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -155,14 +192,18 @@ export default function SpeechToTextPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {languages.map((language) => (
-                      <SelectItem key={language.id} value={language.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{language.flag}</span>
-                          <span>{language.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
+                    {languages.map((language) => {
+                      const isAvailable = isLanguageAvailable(language)
+                      return (
+                        <SelectItem key={language.id} value={language.id} disabled={!isAvailable}>
+                          <div className="flex items-center gap-2">
+                            <span>{language.flag}</span>
+                            <span>{language.name}</span>
+                            {!isAvailable && <Lock className="w-3 h-3 ml-auto" />}
+                          </div>
+                        </SelectItem>
+                      )
+                    })}
                   </SelectContent>
                 </Select>
               </div>
@@ -220,7 +261,7 @@ export default function SpeechToTextPage() {
           )}
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Supported Formats</CardTitle>
@@ -232,6 +273,22 @@ export default function SpeechToTextPage() {
               <p>• Up to 3 hours duration</p>
             </CardContent>
           </Card>
+
+          {premiumLanguages.length > 0 && (
+            <Card className="border-primary/20 bg-primary/5">
+              <CardHeader>
+                <CardTitle>Unlock More Languages</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  {premiumLanguages.length} additional languages available with {premiumLanguages[0].plan} plan or higher
+                </p>
+                <Button asChild size="sm" className="w-full">
+                  <Link href="/pricing">Upgrade Plan</Link>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

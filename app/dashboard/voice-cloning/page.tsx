@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,6 +23,30 @@ export default function VoiceCloningPage() {
   const [textToSpeak, setTextToSpeak] = useState("")
   const [generatedAudio, setGeneratedAudio] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [loadingVoices, setLoadingVoices] = useState(true)
+
+  useEffect(() => {
+    fetchVoiceClones()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const fetchVoiceClones = async () => {
+    setLoadingVoices(true)
+    try {
+      const response = await fetch("/api/user/voice-clones")
+      const data = await response.json()
+      
+      if (response.ok && data.voiceClones) {
+        setClonedVoices(data.voiceClones)
+      } else {
+        console.error("Failed to fetch voice clones:", data.error)
+      }
+    } catch (error) {
+      console.error("Error fetching voice clones:", error)
+    } finally {
+      setLoadingVoices(false)
+    }
+  }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
@@ -75,11 +99,17 @@ export default function VoiceCloningPage() {
 
       if (response.ok) {
         setTrainingProgress(100)
-        setClonedVoices([...clonedVoices, data.voice])
+        // Refresh the voice clones list
+        await fetchVoiceClones()
         setVoiceName("")
         setDescription("")
         setAudioFile(null)
         setTimeout(() => setTrainingProgress(0), 2000)
+        
+        // Trigger dashboard refresh to update usage
+        if (typeof window !== 'undefined' && window.dispatchEvent) {
+          window.dispatchEvent(new Event('dashboard:refresh'))
+        }
       } else {
         setError(data.error || "Failed to train voice")
         clearInterval(progressInterval)
@@ -133,10 +163,10 @@ export default function VoiceCloningPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Voice Cloning</h1>
-        <p className="text-muted-foreground">Create custom AI voices from your voice samples</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Voice Cloning</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Create custom AI voices from your voice samples</p>
       </div>
 
       {error && (
@@ -146,7 +176,7 @@ export default function VoiceCloningPage() {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
         {/* Train New Voice */}
         <Card>
           <CardHeader>
@@ -250,18 +280,24 @@ export default function VoiceCloningPage() {
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>Select Voice</Label>
-              <select
-                value={selectedVoice}
-                onChange={(e) => setSelectedVoice(e.target.value)}
-                className="w-full p-2 border border-border rounded-md bg-background"
-              >
-                <option value="">Choose a cloned voice</option>
-                {clonedVoices.map((voice) => (
-                  <option key={voice.id} value={voice.id}>
-                    {voice.name}
-                  </option>
-                ))}
-              </select>
+              {loadingVoices ? (
+                <div className="text-sm text-muted-foreground">Loading voices...</div>
+              ) : clonedVoices.length === 0 ? (
+                <div className="text-sm text-muted-foreground">No cloned voices yet. Train a voice first.</div>
+              ) : (
+                <select
+                  value={selectedVoice}
+                  onChange={(e) => setSelectedVoice(e.target.value)}
+                  className="w-full p-2 border border-border rounded-md bg-background"
+                >
+                  <option value="">Choose a cloned voice</option>
+                  {clonedVoices.map((voice) => (
+                    <option key={voice.voice_id} value={voice.voice_id}>
+                      {voice.name} {voice.status === "training" ? "(Training...)" : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -323,27 +359,28 @@ export default function VoiceCloningPage() {
             <CardDescription>Manage and use your custom AI voices</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
               {clonedVoices.map((voice) => (
-                <div key={voice.id} className="p-4 border border-border rounded-lg">
+                <div key={voice.voice_id} className="p-3 sm:p-4 border border-border rounded-lg">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-medium">{voice.name}</h4>
-                    <Badge variant="outline">Ready</Badge>
+                    <h4 className="font-medium text-sm sm:text-base">{voice.name}</h4>
+                    <Badge variant="outline" className="text-xs">{voice.status || "Ready"}</Badge>
                   </div>
                   {voice.description && (
-                    <p className="text-sm text-muted-foreground mb-3">{voice.description}</p>
+                    <p className="text-xs sm:text-sm text-muted-foreground mb-3">{voice.description}</p>
                   )}
                   <div className="flex gap-2">
                     <Button
                       size="sm"
                       variant="outline"
-                      onClick={() => setSelectedVoice(voice.id)}
+                      onClick={() => setSelectedVoice(voice.voice_id)}
+                      className="text-xs sm:text-sm"
                     >
-                      <Play className="w-4 h-4 mr-1" />
+                      <Play className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                       Use
                     </Button>
-                    <Button size="sm" variant="outline">
-                      <Download className="w-4 h-4 mr-1" />
+                    <Button size="sm" variant="outline" className="text-xs sm:text-sm">
+                      <Download className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
                       Download
                     </Button>
                   </div>

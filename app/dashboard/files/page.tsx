@@ -153,10 +153,10 @@ export default function AudioFilesPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Audio Files</h1>
-        <p className="text-muted-foreground">Manage your generated audio content</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Audio Files</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">Manage your generated audio content</p>
       </div>
 
       {error && (
@@ -200,10 +200,10 @@ export default function AudioFilesPage() {
       {/* Files Grid */}
       {filteredFiles.length === 0 ? (
         <Card>
-          <CardContent className="text-center py-12">
-            <FileAudio className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-medium mb-2">No files found</h3>
-            <p className="text-muted-foreground">
+          <CardContent className="text-center py-8 sm:py-12">
+            <FileAudio className="w-10 h-10 sm:w-12 sm:h-12 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+            <h3 className="text-base sm:text-lg font-medium mb-2">No files found</h3>
+            <p className="text-sm sm:text-base text-muted-foreground">
               {searchTerm || filterType !== "all" 
                 ? "No files match your search criteria" 
                 : "You haven't generated any audio files yet. Start by using our AI tools!"}
@@ -211,7 +211,7 @@ export default function AudioFilesPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {filteredFiles.map((file) => (
             <Card key={file.id} className="hover:shadow-md transition-shadow">
               <CardHeader className="pb-3">
@@ -291,32 +291,32 @@ export default function AudioFilesPage() {
       {/* Stats */}
       {files.length > 0 && (
         <Card>
-          <CardHeader>
-            <CardTitle>Storage Summary</CardTitle>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base sm:text-lg">Storage Summary</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 text-center">
               <div>
-                <div className="text-2xl font-bold text-primary">{files.length}</div>
-                <div className="text-sm text-muted-foreground">Total Files</div>
+                <div className="text-xl sm:text-2xl font-bold text-primary">{files.length}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Total Files</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-primary">
+                <div className="text-xl sm:text-2xl font-bold text-primary">
                   {formatFileSize(files.reduce((sum, file) => sum + file.file_size, 0))}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Size</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Total Size</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-primary">
+                <div className="text-xl sm:text-2xl font-bold text-primary">
                   {formatDuration(files.reduce((sum, file) => sum + file.duration_seconds, 0))}
                 </div>
-                <div className="text-sm text-muted-foreground">Total Duration</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Total Duration</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-primary">
+                <div className="text-xl sm:text-2xl font-bold text-primary">
                   {files.filter(f => f.usage_type === "tts").length}
                 </div>
-                <div className="text-sm text-muted-foreground">TTS Files</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">TTS Files</div>
               </div>
             </div>
           </CardContent>

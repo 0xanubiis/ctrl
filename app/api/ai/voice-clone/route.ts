@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Voice cloning typically costs more tokens
-    const tokenCost = 500 // Fixed cost for voice cloning
+    // Charge 1 token per voice cloning request
+    const tokenCost = 1
 
     // Check if user has enough tokens
     const { data: canConsume } = await supabase.rpc("consume_tokens", {
@@ -102,12 +102,22 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to save voice clone" }, { status: 500 })
     }
 
+    // Return in format expected by the frontend
     return NextResponse.json({
-      voiceId,
-      voiceName,
-      status: "processing",
+      voice: {
+        id: voiceId,
+        name: voiceName,
+        description: description || "Custom voice clone",
+        status: "ready",
+        created_at: new Date().toISOString(),
+        metadata: {
+          originalFilename: voiceSample.name,
+          fileSize: voiceSample.size,
+          elevenLabsVoiceId: voiceId,
+        }
+      },
       tokensUsed: tokenCost,
-      message: "Voice cloning started. You'll be notified when it's ready.",
+      message: "Voice clone created successfully",
     })
   } catch (error) {
     console.error("Error in voice cloning:", error)

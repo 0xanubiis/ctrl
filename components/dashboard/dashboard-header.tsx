@@ -31,22 +31,22 @@ export function DashboardHeader({ user }: DashboardHeaderProps) {
     "U"
 
   return (
-    <header className="h-16 border-b border-border bg-background px-6 flex items-center justify-between">
-      <div className="flex items-center gap-4 flex-1">
-        <div className="relative max-w-md">
+    <header className="h-16 border-b border-border bg-background px-3 sm:px-6 flex items-center justify-between gap-2">
+      <div className="flex items-center gap-2 sm:gap-4 flex-1 min-w-0">
+        <div className="relative w-full max-w-md hidden sm:block">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
           <Input placeholder="Search files, projects..." className="pl-10 bg-input" />
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
+        <Button variant="ghost" size="sm" className="hidden sm:flex">
           <Bell className="w-4 h-4" />
         </Button>
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+            <Button variant="ghost" className="relative h-8 w-8 rounded-full shrink-0">
               <Avatar className="h-8 w-8">
                 <AvatarImage
                   src={user.user_metadata?.avatar_url || "/placeholder.svg"}

@@ -24,10 +24,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Calculate token cost (OpenAI Whisper charges per minute)
-    const fileSizeInMB = audioFile.size / (1024 * 1024)
-    const estimatedDurationMinutes = Math.max(1, Math.ceil(fileSizeInMB * 60 / 1024)) // Rough estimate
-    const tokenCost = estimatedDurationMinutes // 1 token per minute
+    // Charge 1 token per request regardless of audio length
+    const tokenCost = 1
 
     // Check if user has enough tokens
     const { data: canConsume } = await supabase.rpc("consume_tokens", {

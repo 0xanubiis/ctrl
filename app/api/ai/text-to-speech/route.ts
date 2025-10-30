@@ -22,9 +22,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Calculate tokens based on sentences (1 token per sentence, minimum 1)
-    const sentences = text.split(/[.!?]+/).filter(sentence => sentence.trim().length > 0)
-    const tokenCost = Math.max(1, sentences.length)
+    // Charge 1 token per request regardless of text length
+    const tokenCost = 1
 
     // Check and consume tokens using RPC function
     const { data: canConsume } = await supabase.rpc("consume_tokens", {
@@ -99,8 +98,7 @@ export async function POST(request: NextRequest) {
         quality, 
         voice, 
         model: quality === "high" ? "eleven_multilingual_v2" : "eleven_monolingual_v1",
-        sentenceCount: sentences.length,
-        tokenCost
+        tokenCost: 1
       },
     })
 
